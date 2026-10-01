@@ -2,7 +2,7 @@
 // simulada (vídeo com um código de barras). Usa a rede para falar com o Open Food Facts.
 //
 //   npm run test:e2e            (compila, serve dist/ e corre todos os fluxos)
-//   node scripts/e2e/run.mjs b  (só um fluxo: a, dark, b, c ou d)
+//   node scripts/e2e/run.mjs b  (só um fluxo: a, dark, b, c, d ou e)
 //
 // Variáveis: CHROME_PATH (Chrome instalado), APP_URL (usar um servidor já a correr).
 import { existsSync, mkdirSync } from 'node:fs';
@@ -19,7 +19,12 @@ mkdirSync(SHOTS, { recursive: true });
 mkdirSync(WORK, { recursive: true });
 const CHROME = process.env.CHROME_PATH ?? '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 const only = process.argv[2];
-const VIDEOS = { 'nutella.y4m': '3017620422003', 'notfound.y4m': '5609876543212', 'blank.y4m': '' };
+const VIDEOS = {
+  'nutella.y4m': '3017620422003',
+  'notfound.y4m': '5609876543212',
+  'blank.y4m': '',
+  'prince.y4m': '7622210449283',
+};
 let APP = process.env.APP_URL;
 
 const problems = [];
@@ -365,7 +370,57 @@ async function flowD() {
   await browser.close();
 }
 
-const flows = { a: () => flowA('light'), dark: () => flowA('dark'), b: flowB, c: flowC, d: flowD };
+
+/* ---------------- Fluxo E: nomes em português/inglês ---------------- */
+async function flowE() {
+  console.log('\nFluxo E: nome do produto em português ou inglês');
+  const browser = await launch('prince.y4m');
+  const { page } = await newPage(browser);
+  await page.goto(APP);
+  await page.getByText('kcal restantes').waitFor();
+
+  // Alimento guardado por uma versão antiga, com o nome em francês, e um registo de hoje.
+  await page.evaluate(async () => {
+    const db = await new Promise((res, rej) => {
+      const r = indexedDB.open('macro');
+      r.onsuccess = () => res(r.result);
+      r.onerror = () => rej(r.error);
+    });
+    const tx = db.transaction(['foods', 'entries'], 'readwrite');
+    const now = Date.now();
+    const per100 = { kcal: 520, protein: 6, fat: 25, carbs: 66 };
+    const add = (store, value) =>
+      new Promise((res, rej) => {
+        const r = tx.objectStore(store).add(value);
+        r.onsuccess = () => res(r.result);
+        r.onerror = () => rej(r.error);
+      });
+    const old = 'Biscuits NUTELLA Biscuits Noisettes et Cacao x22 - 304g';
+    const foodId = await add('foods', {
+      barcode: '8000500310427', name: old, unit: 'g', per100, source: 'off',
+      favorite: 0, useCount: 1, lastUsedAt: now, lastAmount: 28, createdAt: now, updatedAt: now,
+    });
+    const d = new Date();
+    const date = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    await add('entries', {
+      date, meal: 'snack', createdAt: now, foodId, name: old, amount: 28, unit: 'g', per100,
+      nutrients: { kcal: 145.6, protein: 1.7, fat: 7, carbs: 18.5 },
+    });
+    await new Promise((res) => (tx.oncomplete = res));
+    db.close();
+  });
+  await page.reload();
+  await page.getByText('Crocantes bolachas com um coração cremoso de Nutella®').waitFor({ timeout: 20000 });
+  step('alimento já guardado em francês passou a português (também no diário)');
+
+  await scan(page);
+  await page.getByRole('heading', { name: 'Prince Goût Chocolat au Blé Complet' }).waitFor({ timeout: 30000 });
+  step('produto francês sem nome em português aparece com o nome em inglês');
+  await shot(page, '19-nome-ingles');
+  await browser.close();
+}
+
+const flows = { a: () => flowA('light'), dark: () => flowA('dark'), b: flowB, c: flowC, d: flowD, e: flowE };
 let server;
 try {
   for (const [file, code] of Object.entries(VIDEOS)) {

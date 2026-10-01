@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useRegisterSW } from 'virtual:pwa-register/react';
 import { FeedbackProvider } from './components/Feedback';
 import { Icon, type IconName } from './components/Icon';
+import { refreshFoodNames } from './data';
 import { mealForTime } from './db';
 import { useSettings, useToday } from './hooks';
 import { NavProvider, PageKeyProvider, useNavStack, type Page } from './nav';
@@ -40,6 +41,12 @@ export default function App() {
       ?.persisted?.()
       .then((persisted) => persisted || navigator.storage.persist())
       .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    // Depois de arrancar, corrige nomes de alimentos guardados com regras antigas.
+    const timer = setTimeout(() => refreshFoodNames().catch(() => {}), 2000);
+    return () => clearTimeout(timer);
   }, []);
 
   const changeTab = (next: Tab) => {

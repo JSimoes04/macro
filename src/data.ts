@@ -1,7 +1,7 @@
 import { db, DEFAULT_SETTINGS, type Entry, type Food, type FoodData, type Goals, type MealId, type Profile } from './db';
 import { barcodeVariants, normalizeBarcode } from './lib/barcode';
 import { scaleNutrients, type Nutrients } from './lib/nutrition';
-import { fetchProduct } from './lib/off';
+import { fetchProduct, fetchProductName, NAME_RULES_VERSION } from './lib/off';
 
 function cleanFood(data: FoodData): FoodData {
   const barcode = data.barcode ? normalizeBarcode(data.barcode) : '';
@@ -60,6 +60,30 @@ export async function lookupBarcode(raw: string, signal?: AbortSignal): Promise<
   const food = await db.foods.get(id);
   if (!food) throw new Error('Não foi possível guardar o alimento.');
   return { kind: 'found', food, source: 'off' };
+}
+
+/**
+ * Alimentos do Open Food Facts que nunca foram editados e cujo nome foi escolhido
+ * com regras antigas (ex.: nome em francês quando havia em inglês) recebem o nome
+ * atual, também nos registos do diário. Sem internet, lança erro e fica para a próxima.
+ */
+export async function refreshFoodNames(): Promise<void> {
+  const stale = await db.foods
+    .filter((f) => f.source === 'off' && !!f.barcode && f.updatedAt === f.createdAt && (f.nameVersion ?? 1) < NAME_RULES_VERSION)
+    .toArray();
+  for (const food of stale) {
+    const name = await fetchProductName(food.barcode!);
+    await db.transaction('rw', db.foods, db.entries, async () => {
+      if (name && name !== food.name) {
+        await db.entries
+          .where('foodId')
+          .equals(food.id)
+          .filter((e) => e.name === food.name)
+          .modify({ name });
+      }
+      await db.foods.update(food.id, { nameVersion: NAME_RULES_VERSION, ...(name ? { name } : {}) });
+    });
+  }
 }
 
 function entryFromFood(food: Food, amount: number, date: string, meal: MealId): Omit<Entry, 'id'> {

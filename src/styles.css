@@ -736,6 +736,11 @@
     grid-template-columns: 1fr 1fr;
   }
 
+  /* Larguras pelo conteúdo: "g" é curto, "Embalagem" não. */
+  .choice-units label {
+    flex: 1 0 auto;
+  }
+
   .choice-units label > span {
     min-block-size: 44px;
     padding-inline: 10px;

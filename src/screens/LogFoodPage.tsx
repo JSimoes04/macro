@@ -271,7 +271,7 @@ function AmountForm({
       <form className="page-form" onSubmit={submit} noValidate>
         <div className="page-body">
           <div className="food-head">
-            <Thumb src={item.imageUrl} name={item.name} size={64} />
+            <Thumb src={item.imageUrl} name={item.name} size={64} eager />
             <div>
               <h2>{item.name}</h2>
               {displayBrand(item.name, item.brand) && <p className="food-head-brand">{item.brand}</p>}

@@ -29,7 +29,7 @@ export function PageHeader({ title, actions }: { title: string; actions?: ReactN
   );
 }
 
-export function Thumb({ src, name, size = 44 }: { src?: string; name: string; size?: number }) {
+export function Thumb({ src, name, size = 44, eager = false }: { src?: string; name: string; size?: number; eager?: boolean }) {
   const [failed, setFailed] = useState(false);
   const style = { '--thumb-size': `${size}px` } as CSSProperties;
   if (src && !failed) {
@@ -41,7 +41,7 @@ export function Thumb({ src, name, size = 44 }: { src?: string; name: string; si
         alt=""
         width={size}
         height={size}
-        loading="lazy"
+        loading={eager ? "eager" : "lazy"}
         decoding="async"
         crossOrigin="anonymous"
         referrerPolicy="no-referrer"

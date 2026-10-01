@@ -39,6 +39,8 @@ export interface FoodData {
   source: 'off' | 'manual';
   /** O Open Food Facts não tinha a informação nutricional completa. */
   incomplete?: boolean;
+  /** Versão das regras com que o nome foi escolhido (só alimentos do Open Food Facts). */
+  nameVersion?: number;
 }
 
 export interface Food extends FoodData {

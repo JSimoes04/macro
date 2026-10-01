@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { normalizeProduct } from './off';
+import { NAME_RULES_VERSION, normalizeProduct, productName } from './off';
 
 // Respostas reais (reduzidas) da API v2 do Open Food Facts.
 const nutella = {
@@ -51,6 +51,56 @@ const cola = {
   serving_quantity_unit: 'ml',
   serving_size: '1 portion (330 ml)',
 };
+
+describe('productName (português › inglês › língua original)', () => {
+  // Campos reais de produtos franceses no Open Food Facts.
+  const prince = {
+    lang: 'fr',
+    product_name: 'Prince',
+    product_name_fr: 'Prince',
+    product_name_en: 'Prince Goût Chocolat au Blé Complet',
+    generic_name: 'BISCUITS FOURRÉS (35%) PARFUM CHOCOLAT',
+  };
+  const nutellaBiscuits = {
+    lang: 'fr',
+    product_name: 'Biscuits NUTELLA Biscuits Noisettes et Cacao x22 - 304g',
+    product_name_en: 'Nutella B-ready',
+    product_name_pt: 'Crocantes bolachas com um coração cremoso de Nutella®',
+  };
+
+  it('prefere português', () => {
+    expect(productName(nutellaBiscuits)).toBe('Crocantes bolachas com um coração cremoso de Nutella®');
+  });
+
+  it('sem português, usa inglês em vez da língua da embalagem', () => {
+    expect(productName(prince)).toBe('Prince Goût Chocolat au Blé Complet');
+  });
+
+  it('o nome principal conta como português ou inglês se for essa a língua do produto', () => {
+    expect(productName({ lang: 'pt', product_name: 'Leite meio-gordo', product_name_en: 'Semi-skimmed milk' })).toBe(
+      'Leite meio-gordo',
+    );
+    expect(productName({ lang: 'en', product_name: 'Peanut butter', product_name_fr: 'Beurre de cacahuète' })).toBe(
+      'Peanut butter',
+    );
+  });
+
+  it('a descrição em português ganha ao nome em francês', () => {
+    expect(productName({ lang: 'fr', product_name: 'Petit Écolier', generic_name_pt: 'Bolacha com chocolate de leite' })).toBe(
+      'Bolacha com chocolate de leite',
+    );
+  });
+
+  it('só usa a língua original quando não há mais nada', () => {
+    expect(productName({ lang: 'fr', product_name: 'Pomme Noisette', generic_name: 'Biscuits aux pommes' })).toBe('Pomme Noisette');
+    expect(productName({ lang: 'fr', generic_name: 'Biscuits aux pommes' })).toBe('Biscuits aux pommes');
+    expect(productName({ product_name_pt: '', product_name: '' })).toBeUndefined();
+  });
+
+  it('marca a versão das regras nos produtos convertidos', () => {
+    expect(normalizeProduct(prince, '7622210449283').nameVersion).toBe(NAME_RULES_VERSION);
+  });
+});
 
 describe('normalizeProduct', () => {
   it('converte um produto completo', () => {
